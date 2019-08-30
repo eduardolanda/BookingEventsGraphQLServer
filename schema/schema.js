@@ -67,24 +67,24 @@ const RootQuery = new GraphQLObjectType({
         password: { type: GraphQLString }
       },
       resolve(parent, args) {
-        User.findOne({ email: args.email }, "password email", async function(
-          err,
-          user
-        ) {
-          if (err) return handleError(err);
-          await getUser(user.password);
-        });
-
-        function getUser(ps) {
-          bcrypt.compare(args.password, ps).then(function(res) {
-            if (res) {
-              console.log("working");
-              return User.findOne({ email: args.email });
-            } else {
-              console.log("Something went wrong");
-            }
+        const getValidUser = async () => {
+          const validUser = new Promise((resolve, reject) => {
+            User.findOne(
+              { email: args.email },
+              "password email",
+              async function(err, user) {
+                if (err) reject(err);
+                else if (await bcrypt.compare(args.password, user.password)) {
+                  resolve(user);
+                } else {
+                  reject("Invalid Password");
+                }
+              }
+            );
           });
-        }
+          return await validUser;
+        };
+        return getValidUser();
       }
     },
     events: {
